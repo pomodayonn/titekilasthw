@@ -116,6 +116,24 @@
             現在地を取得する
           </button>
 
+          <div class="place-search-box">
+  <label>
+    地名で場所を検索
+    <div class="place-search-row">
+      <input
+        type="text"
+        id="placeSearchInput"
+        placeholder="例：東京駅、渋谷、横浜アリーナ、東京ドーム"
+      >
+      <button id="placeSearchBtn" type="button" class="location-btn small-location-btn">
+        検索
+      </button>
+    </div>
+  </label>
+
+  <div id="placeSearchResults" class="place-search-results"></div>
+</div>
+
           <div class="two-col">
             <label>
               緯度
@@ -178,6 +196,7 @@
 
   <!-- Leaflet 地図用JS -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 
   <script type="module">
     import {
@@ -204,6 +223,9 @@
     const longitude = document.getElementById("longitude");
     const getLocationBtn = document.getElementById("getLocationBtn");
     const locationStatus = document.getElementById("locationStatus");
+    const placeSearchInput = document.getElementById("placeSearchInput");
+const placeSearchBtn = document.getElementById("placeSearchBtn");
+const placeSearchResults = document.getElementById("placeSearchResults");
 
     const loading = document.getElementById("loading");
     const weatherText = document.getElementById("weatherText");
@@ -241,6 +263,86 @@
       marker.setLatLng([lat, lng]);
       marker.bindPopup(message).openPopup();
     }
+
+    async function searchPlaceByName() {
+  const keyword = placeSearchInput.value.trim();
+
+  if (!keyword) {
+    alert("検索する地名を入力してください。");
+    return;
+  }
+
+  placeSearchResults.innerHTML = "<p>検索中...</p>";
+  locationStatus.textContent = "地名から場所を検索中です...";
+
+  try {
+    const url =
+      "https://nominatim.openstreetmap.org/search" +
+      `?q=${encodeURIComponent(keyword)}` +
+      "&format=json" +
+      "&limit=5" +
+      "&countrycodes=jp" +
+      "&addressdetails=1";
+
+    const response = await fetch(url, {
+      headers: {
+        "Accept": "application/json"
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error("地名検索に失敗しました。");
+    }
+
+    const places = await response.json();
+
+    if (!places || places.length === 0) {
+      placeSearchResults.innerHTML = "<p>候補が見つかりませんでした。</p>";
+      locationStatus.textContent = "地名検索で候補が見つかりませんでした。";
+      return;
+    }
+
+    placeSearchResults.innerHTML = "";
+
+    places.forEach((place) => {
+      const item = document.createElement("button");
+      item.type = "button";
+      item.className = "place-result-item";
+
+      item.textContent = place.display_name;
+
+      item.addEventListener("click", () => {
+        const lat = Number(place.lat);
+        const lng = Number(place.lon);
+
+        updateMap(lat, lng, place.display_name);
+
+        locationStatus.textContent = `検索結果から場所を設定しました: ${place.display_name}`;
+
+        placeSearchResults.innerHTML = "";
+        placeSearchInput.value = place.display_name;
+      });
+
+      placeSearchResults.appendChild(item);
+    });
+
+  } catch (error) {
+    console.error(error);
+    placeSearchResults.innerHTML = `<p>エラー: ${error.message}</p>`;
+    locationStatus.textContent = "地名検索でエラーが発生しました。";
+  }
+}
+
+placeSearchBtn.addEventListener("click", () => {
+  searchPlaceByName();
+});
+
+placeSearchInput.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    searchPlaceByName();
+  }
+});
 
     // 地図をクリックした場所を緯度経度に反映
     map.on("click", (e) => {
@@ -654,7 +756,7 @@ analyzeBtn.addEventListener("click", async () => {
   loading.classList.remove("hidden");
   analyzeBtn.disabled = true;
   analyzeBtn.textContent = "AIが分析中です...";
-
+  resultText.innerHTML = "";
   resultText.textContent = "分析中...";
   weatherText.textContent = "取得中...";
   holidayText.textContent = "取得中...";
@@ -706,7 +808,11 @@ analyzeBtn.addEventListener("click", async () => {
 
     weatherText.textContent = data.weather;
     holidayText.textContent = data.holiday;
-    resultText.textContent = data.result;
+    if (window.marked) {
+  resultText.innerHTML = marked.parse(data.result);
+} else {
+  resultText.textContent = data.result;
+}
 
   } catch (error) {
     console.error("AI分析エラー:", error);

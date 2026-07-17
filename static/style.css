@@ -473,7 +473,7 @@ pre {
 
 #cameraCanvas {
   width: 100%;
-  aspect-ratio: 3 / 4;
+  aspect-ratio: 4 / 3;
   object-fit: cover;
   border-radius: 22px;
   background: #0f172a;
@@ -506,4 +506,68 @@ pre {
 
 #preview:not([src]) {
   display: none;
+}
+
+/* =====================
+   Place Search
+===================== */
+
+.place-search-box {
+  margin-top: 14px;
+  margin-bottom: 16px;
+}
+
+.place-search-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  align-items: end;
+}
+
+.place-search-row input {
+  margin-top: 8px;
+}
+
+.small-location-btn {
+  width: 92px;
+  height: 46px;
+  margin: 8px 0 0;
+  padding: 0;
+  font-size: 14px;
+}
+
+.place-search-results {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.place-result-item {
+  width: 100%;
+  border: 1px solid var(--line);
+  background: #ffffff;
+  color: var(--text);
+  text-align: left;
+  padding: 11px 13px;
+  border-radius: 14px;
+  font-size: 13px;
+  line-height: 1.5;
+  box-shadow: none;
+}
+
+.place-result-item:hover {
+  background: #eef5f2;
+  color: var(--main-dark);
+  transform: none;
+  box-shadow: none;
+}
+
+@media (max-width: 900px) {
+  .place-search-row {
+    grid-template-columns: 1fr;
+  }
+
+  .small-location-btn {
+    width: 100%;
+  }
 }
