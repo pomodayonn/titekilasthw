@@ -494,10 +494,16 @@ pre {
   line-height: 1.6;
 }
 
-.delete-btn {
-  background: linear-gradient(135deg, #ef4444, #991b1b);
+.preview-delete-btn {
+  width: 100%;
+  margin-top: 14px;
+  background: linear-gradient(135deg, #64748b, #334155);
 }
 
-.delete-btn:hover {
-  background: linear-gradient(135deg, #dc2626, #7f1d1d);
+.preview-delete-btn:hover {
+  background: linear-gradient(135deg, #475569, #1e293b);
+}
+
+#preview:not([src]) {
+  display: none;
 }

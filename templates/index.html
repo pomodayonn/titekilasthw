@@ -41,7 +41,6 @@
           <button id="startCameraBtn">カメラON</button>
           <button id="stopCameraBtn" class="sub-btn">カメラOFF</button>
           <button id="captureBtn">撮影する</button>
-          <button　id="deleteImageBtn" class="delete-btn">画像を削除</button>
         </div>
 
         <p class="note">
@@ -51,6 +50,9 @@
         <div class="preview-area">
           <h3>撮影画像</h3>
           <img id="preview" alt="撮影画像プレビュー">
+          <button id="deleteImageBtn" class="sub-btn preview-delete-btn">
+            画像を削除
+          </button>
         </div>
       </section>
 
@@ -528,10 +530,16 @@ deleteImageBtn.addEventListener("click", () => {
   }
 
   capturedImage = null;
+
   preview.removeAttribute("src");
+  preview.style.display = "none";
+
+  weatherText.textContent = "未取得";
+  holidayText.textContent = "未取得";
+  selectedEventText.textContent = "未選択";
+  selectedTrendText.textContent = "未入力";
   resultText.textContent = "撮影画像を削除しました。もう一度撮影してください。";
 });
-
 
     // AI分析
     // =========================
