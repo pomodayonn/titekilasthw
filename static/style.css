@@ -493,3 +493,11 @@ pre {
   font-weight: bold;
   line-height: 1.6;
 }
+
+.delete-btn {
+  background: linear-gradient(135deg, #ef4444, #991b1b);
+}
+
+.delete-btn:hover {
+  background: linear-gradient(135deg, #dc2626, #7f1d1d);
+}

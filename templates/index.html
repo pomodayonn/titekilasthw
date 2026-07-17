@@ -41,6 +41,7 @@
           <button id="startCameraBtn">カメラON</button>
           <button id="stopCameraBtn" class="sub-btn">カメラOFF</button>
           <button id="captureBtn">撮影する</button>
+          <button　id="deleteImageBtn" class="delete-btn">画像を削除</button>
         </div>
 
         <p class="note">
@@ -189,6 +190,7 @@
     const startCameraBtn = document.getElementById("startCameraBtn");
     const stopCameraBtn = document.getElementById("stopCameraBtn");
     const captureBtn = document.getElementById("captureBtn");
+    const deleteImageBtn = document.getElementById("deleteImageBtn");
     const analyzeBtn = document.getElementById("analyzeBtn");
 
     const trendKeywords = document.getElementById("trendKeywords");
@@ -511,6 +513,23 @@ captureBtn.addEventListener("click", () => {
   // モザイク済みcanvas画像を撮影画像として使う
   capturedImage = cameraCanvas.toDataURL("image/jpeg", 0.8);
   preview.src = capturedImage;
+});
+
+deleteImageBtn.addEventListener("click", () => {
+  if (!capturedImage) {
+    alert("削除する撮影画像がありません。");
+    return;
+  }
+
+  const ok = confirm("撮影した画像を削除しますか？");
+
+  if (!ok) {
+    return;
+  }
+
+  capturedImage = null;
+  preview.removeAttribute("src");
+  resultText.textContent = "撮影画像を削除しました。もう一度撮影してください。";
 });
 
 
