@@ -27,7 +27,10 @@
 
         <video id="video" autoplay playsinline muted style="display:none;"></video>
 
-        <canvas id="cameraCanvas"></canvas>
+        <div class="camera-wrapper">
+  <canvas id="cameraCanvas"></canvas>
+  <div id="countdownOverlay" class="countdown-overlay hidden">5</div>
+</div>
         <canvas id="canvas" style="display:none;"></canvas>
 
         <p class="privacy-note">
@@ -100,6 +103,38 @@
             placeholder="例：今日は大学の授業後に友達とカフェに行く予定です。動きやすくて、少しおしゃれに見える服装にしたいです。"
           ></textarea>
         </label>
+
+         <label>
+  任意：骨格タイプ
+  <select id="bodyType">
+    <option value="">選択しない</option>
+    <option value="ストレート">ストレート</option>
+    <option value="ウェーブ">ウェーブ</option>
+    <option value="ナチュラル">ナチュラル</option>
+    <option value="わからない">わからない</option>
+  </select>
+</label>
+
+<label>
+   任意：身長
+  <input type="number" id="heightCm" placeholder="例：160">
+</label>
+
+<label>
+   任意：サイズ感の好み
+  <select id="fitPreference">
+    <option value="">選択しない</option>
+    <option value="ゆったりめ">ゆったりめ</option>
+    <option value="ジャストサイズ">ジャストサイズ</option>
+    <option value="すっきり見える">すっきり見える</option>
+    <option value="動きやすさ重視">動きやすさ重視</option>
+  </select>
+</label>
+
+<label>
+  任意：体重 
+  <input type="number" id="weightKg" placeholder="入力しなくてもOK">
+</label>
 
         
         <div class="location-box">
@@ -180,12 +215,16 @@
         </div>
 
         <div>
-          <h3>流行キーワード</h3>
+          <h3>検索キーワード</h3>
           <p id="selectedTrendText">未入力</p>
         </div>
       </div>
 
       <h3>ファッション提案</h3>
+      <div class="result-image-box">
+      <h3>提案コーデ例</h3>
+      <img id="outfitImage" alt="AIが生成したコーデ例">
+</div>
       <pre id="resultText">ここにAIの提案が表示されます。</pre>
     </section>
   </div>
@@ -205,6 +244,8 @@
 
     const startCameraBtn = document.getElementById("startCameraBtn");
     const stopCameraBtn = document.getElementById("stopCameraBtn");
+    const countdownOverlay = document.getElementById("countdownOverlay");
+    const outfitImage = document.getElementById("outfitImage");
     const captureBtn = document.getElementById("captureBtn");
     const deleteImageBtn = document.getElementById("deleteImageBtn");
     const analyzeBtn = document.getElementById("analyzeBtn");
@@ -228,9 +269,13 @@ const placeSearchResults = document.getElementById("placeSearchResults");
     const selectedEventText = document.getElementById("selectedEventText");
     const selectedTrendText = document.getElementById("selectedTrendText");
     const resultText = document.getElementById("resultText");
+    const analysisImage = document.getElementById("analysisImage");
     
 
-
+const bodyType = document.getElementById("bodyType");
+const heightCm = document.getElementById("heightCm");
+const fitPreference = document.getElementById("fitPreference");
+const weightKg = document.getElementById("weightKg");
 
     // 地図初期化
   
@@ -671,27 +716,9 @@ stopCameraBtn.addEventListener("click", () => {
 
 
 // 撮影
+//5秒後に撮影
 
-
-captureBtn.addEventListener("click", () => {
-  if (!isCameraRunning || cameraCanvas.width === 0) {
-    alert("先にカメラを起動してください。");
-    return;
-  }
-
-  // 2回目以降も必ず最新画像で上書きする
-  capturedImage = null;
-
-  capturedImage = cameraCanvas.toDataURL("image/jpeg", 0.85);
-
-  preview.src = capturedImage;
-  preview.style.display = "block";
-
-  resultText.textContent = "撮影しました。内容を確認して、AI分析ボタンを押してください。";
-});
-
-// 撮影
-
+let isCountingDown = false;
 
 captureBtn.addEventListener("click", () => {
   if (!isCameraRunning || cameraCanvas.width === 0) {
@@ -699,9 +726,49 @@ captureBtn.addEventListener("click", () => {
     return;
   }
 
-  // モザイク済み画像を撮影画像を使用
-  capturedImage = cameraCanvas.toDataURL("image/jpeg", 0.8);
-  preview.src = capturedImage;
+  // カウントダウン中に連打されても二重実行しない
+  if (isCountingDown) {
+    return;
+  }
+
+  let count = 5;
+  isCountingDown = true;
+
+  captureBtn.disabled = true;
+  captureBtn.textContent = "撮影準備中...";
+
+  countdownOverlay.textContent = count;
+  countdownOverlay.classList.remove("hidden");
+
+  resultText.textContent = "5秒後に撮影します。服装が見える位置に立ってください。";
+
+  const countdown = setInterval(() => {
+    count--;
+
+    if (count > 0) {
+      countdownOverlay.textContent = count;
+      resultText.textContent = `${count}秒後に撮影します。`;
+    } else {
+      clearInterval(countdown);
+
+      countdownOverlay.textContent = "📸";
+
+      setTimeout(() => {
+        capturedImage = cameraCanvas.toDataURL("image/jpeg", 0.85);
+
+        preview.src = capturedImage;
+        preview.style.display = "block";
+
+        countdownOverlay.classList.add("hidden");
+
+        captureBtn.disabled = false;
+        captureBtn.textContent = "撮影する";
+        isCountingDown = false;
+
+        resultText.textContent = "撮影しました。内容を確認して、AI分析ボタンを押してください。";
+      }, 400);
+    }
+  }, 1000);
 });
 
 deleteImageBtn.addEventListener("click", () => {
@@ -770,7 +837,18 @@ analyzeBtn.addEventListener("click", async () => {
       headers: {
         "Content-Type": "application/json"
       },
-      body: JSON.stringify(payload)
+     body: JSON.stringify({
+  image: capturedImage,
+  trend_keywords: trendText,
+  event_keywords: eventText,
+  purpose_text: purposeText.value,
+  latitude: Number(latitude.value),
+  longitude: Number(longitude.value),
+  body_type: bodyType.value,
+  height_cm: heightCm.value,
+  fit_preference: fitPreference.value,
+  weight_kg: weightKg.value
+})
     });
 
     console.log("ステータス:", response.status);
@@ -795,11 +873,25 @@ analyzeBtn.addEventListener("click", async () => {
 
     weatherText.textContent = data.weather;
     holidayText.textContent = data.holiday;
-    if (window.marked) {
+    const aiResult = data.result || data.error || "AIの提案結果が取得できませんでした。";
+
+if (window.marked && data.result) {
   resultText.innerHTML = marked.parse(data.result);
 } else {
-  resultText.textContent = data.result;
+  resultText.textContent = aiResult;
 }
+
+if (outfitImage) {
+  if (data.outfit_image) {
+    outfitImage.src = data.outfit_image;
+    outfitImage.style.display = "block";
+  } else {
+    outfitImage.removeAttribute("src");
+    outfitImage.style.display = "none";
+    console.log("コーデ画像は生成されませんでした。");
+  }
+}
+
 
   } catch (error) {
     console.error("AI分析エラー:", error);
