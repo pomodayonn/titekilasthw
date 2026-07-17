@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>AI Fashion Navigator</title>
+
+  <link rel="stylesheet" href="/static/style.css">
+
+  <!-- Leaflet 地図用CSS -->
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+  />
+</head>
+<body>
+  <div class="app">
+    <header>
+      <p class="label">AI Fashion Navigator</p>
+      <h1>今日のファッションをAIがナビゲート</h1>
+      <p class="subtitle">
+        Webカメラで撮影した服装画像に、現在地の天気・祝日・流行キーワード・イベント情報を組み合わせて、
+        今日にぴったりのファッション案を提案します。
+      </p>
+    </header>
+
+    <main class="layout">
+      <!-- カメラエリア -->
+      <section class="card camera-card">
+        <h2>1. Webカメラで服装を撮影</h2>
+
+        <video id="video" autoplay playsinline muted style="display:none;"></video>
+
+        <canvas id="cameraCanvas"></canvas>
+        <canvas id="canvas" style="display:none;"></canvas>
+
+        <p class="privacy-note">
+          顔が検出された場合、プライバシー保護のため自動でモザイク処理します。
+        </p>
+
+        <div class="button-row">
+          <button id="startCameraBtn">カメラON</button>
+          <button id="stopCameraBtn" class="sub-btn">カメラOFF</button>
+          <button id="captureBtn">撮影する</button>
+        </div>
+
+        <p class="note">
+          ブラウザからカメラ使用の許可を求められたら「許可」を押してください。
+        </p>
+
+        <div class="preview-area">
+          <h3>撮影画像</h3>
+          <img id="preview" alt="撮影画像プレビュー">
+        </div>
+      </section>
+
+      <!-- 入力エリア -->
+      <section class="card input-card">
+        <h2>2. 条件を入力</h2>
+
+        <label>
+          流行キーワード
+          <input
+            type="text"
+            id="trendKeywords"
+            placeholder="例：レイヤード、ワイドパンツ、淡色コーデ"
+          >
+        </label>
+
+        <label>
+          行くイベント・予定を選択
+          <select id="eventSelect">
+            <option value="">選択してください</option>
+            <option value="大学・授業">大学・授業</option>
+            <option value="アルバイト">アルバイト</option>
+            <option value="買い物">買い物</option>
+            <option value="カフェ">カフェ</option>
+            <option value="デート">デート</option>
+            <option value="ライブ・コンサート">ライブ・コンサート</option>
+            <option value="映画館">映画館</option>
+            <option value="スポーツ観戦">スポーツ観戦</option>
+            <option value="就活・面接">就活・面接</option>
+            <option value="お祭り・屋外イベント">お祭り・屋外イベント</option>
+            <option value="旅行・観光">旅行・観光</option>
+            <option value="その他">その他</option>
+          </select>
+        </label>
+
+        <label>
+          イベントの補足
+          <input
+            type="text"
+            id="eventKeywords"
+            placeholder="例：夜まで外出、歩く時間が長い、少しきれいめにしたい"
+          >
+        </label>
+
+        <label>
+          服装の目的
+          <textarea
+            id="purposeText"
+            placeholder="例：今日は大学の授業後に友達とカフェに行く予定です。動きやすくて、少しおしゃれに見える服装にしたいです。"
+          ></textarea>
+        </label>
+
+        <!-- 現在地・地図エリア -->
+        <div class="location-box">
+          <h3>現在地・天気取得エリア</h3>
+          <p>
+            現在地を取得すると、緯度・経度が自動入力され、その地点の天気情報を使って服装提案します。
+          </p>
+
+          <button id="getLocationBtn" class="location-btn">
+            現在地を取得する
+          </button>
+
+          <div class="two-col">
+            <label>
+              緯度
+              <input type="number" id="latitude" value="35.68" step="0.0001">
+            </label>
+
+            <label>
+              経度
+              <input type="number" id="longitude" value="139.76" step="0.0001">
+            </label>
+          </div>
+
+          <div id="map"></div>
+
+          <p id="locationStatus" class="note">
+            初期位置は東京駅周辺です。
+          </p>
+        </div>
+
+        <button id="analyzeBtn" class="main-btn">
+          AIにファッション提案してもらう
+        </button>
+      </section>
+    </main>
+
+    <!-- 結果表示 -->
+    <section class="card result-card">
+      <h2>3. 分析結果</h2>
+
+      <div id="loading" class="loading hidden">
+        AIが分析中です。少しお待ちください...
+      </div>
+
+      <div class="info-grid">
+        <div>
+          <h3>天気情報</h3>
+          <p id="weatherText">未取得</p>
+        </div>
+
+        <div>
+          <h3>祝日情報</h3>
+          <p id="holidayText">未取得</p>
+        </div>
+
+        <div>
+          <h3>選択イベント</h3>
+          <p id="selectedEventText">未選択</p>
+        </div>
+
+        <div>
+          <h3>流行キーワード</h3>
+          <p id="selectedTrendText">未入力</p>
+        </div>
+      </div>
+
+      <h3>ファッション提案</h3>
+      <pre id="resultText">ここにAIの提案が表示されます。</pre>
+    </section>
+  </div>
+
+  <!-- Leaflet 地図用JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <script type="module">
+    import {
+  FaceDetector,
+  FilesetResolver
+} from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/vision_bundle.mjs";
+
+    const video = document.getElementById("video");
+    const canvas = document.getElementById("canvas");
+    const preview = document.getElementById("preview");
+
+    const startCameraBtn = document.getElementById("startCameraBtn");
+    const stopCameraBtn = document.getElementById("stopCameraBtn");
+    const captureBtn = document.getElementById("captureBtn");
+    const analyzeBtn = document.getElementById("analyzeBtn");
+
+    const trendKeywords = document.getElementById("trendKeywords");
+    const eventSelect = document.getElementById("eventSelect");
+    const eventKeywords = document.getElementById("eventKeywords");
+    const purposeText = document.getElementById("purposeText");
+
+    const latitude = document.getElementById("latitude");
+    const longitude = document.getElementById("longitude");
+    const getLocationBtn = document.getElementById("getLocationBtn");
+    const locationStatus = document.getElementById("locationStatus");
+
+    const loading = document.getElementById("loading");
+    const weatherText = document.getElementById("weatherText");
+    const holidayText = document.getElementById("holidayText");
+    const selectedEventText = document.getElementById("selectedEventText");
+    const selectedTrendText = document.getElementById("selectedTrendText");
+    const resultText = document.getElementById("resultText");
+    
+
+
+
+    // =========================
+    // 地図初期化
+    // =========================
+
+    const initialLat = Number(latitude.value);
+    const initialLng = Number(longitude.value);
+
+    const map = L.map("map").setView([initialLat, initialLng], 14);
+
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 19,
+      attribution: "&copy; OpenStreetMap contributors"
+    }).addTo(map);
+
+    let marker = L.marker([initialLat, initialLng]).addTo(map)
+      .bindPopup("現在の設定位置")
+      .openPopup();
+
+    function updateMap(lat, lng, message) {
+      latitude.value = lat.toFixed(6);
+      longitude.value = lng.toFixed(6);
+
+      map.setView([lat, lng], 15);
+      marker.setLatLng([lat, lng]);
+      marker.bindPopup(message).openPopup();
+    }
+
+    // 地図をクリックした場所を緯度経度に反映
+    map.on("click", (e) => {
+      const lat = e.latlng.lat;
+      const lng = e.latlng.lng;
+
+      updateMap(lat, lng, "地図で選択した場所");
+      locationStatus.textContent = "地図で選択した場所を使用します。";
+    });
+
+    // 現在地取得
+    getLocationBtn.addEventListener("click", () => {
+      if (!navigator.geolocation) {
+        alert("このブラウザは位置情報取得に対応していません。");
+        return;
+      }
+
+      locationStatus.textContent = "現在地を取得中です...";
+
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const lat = position.coords.latitude;
+          const lng = position.coords.longitude;
+
+          updateMap(lat, lng, "現在地");
+          locationStatus.textContent = "現在地を取得しました。";
+        },
+        (error) => {
+          locationStatus.textContent = "現在地を取得できませんでした。手入力または地図クリックで指定してください。";
+          alert("現在地を取得できませんでした: " + error.message);
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 0
+        }
+      );
+    });
+
+    // 緯度経度を手入力したときに地図更新
+    latitude.addEventListener("change", () => {
+      updateMap(Number(latitude.value), Number(longitude.value), "手入力した位置");
+    });
+
+    longitude.addEventListener("change", () => {
+      updateMap(Number(latitude.value), Number(longitude.value), "手入力した位置");
+    });
+
+// =========================
+// カメラON/OFF + 顔モザイク
+// =========================
+
+const cameraCanvas = document.getElementById("cameraCanvas");
+const cameraCtx = cameraCanvas.getContext("2d");
+
+let capturedImage = null;
+let faceDetector = null;
+let isCameraRunning = false;
+let animationId = null;
+let lastVideoTime = -1;
+
+// =========================
+// MediaPipe 顔検出 初期化
+// =========================
+
+async function initFaceDetector() {
+  if (faceDetector) {
+    return;
+  }
+
+  const vision = await FilesetResolver.forVisionTasks(
+    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm"
+  );
+
+  faceDetector = await FaceDetector.createFromOptions(vision, {
+    baseOptions: {
+      modelAssetPath:
+        "https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/latest/blaze_face_short_range.tflite"
+    },
+    runningMode: "VIDEO",
+    minDetectionConfidence: 0.5
+  });
+
+  console.log("顔検出モデルを読み込みました");
+}
+
+// =========================
+// 顔部分にモザイクをかける
+// =========================
+
+function applyMosaic(ctx, x, y, width, height) {
+  const canvasWidth = cameraCanvas.width;
+  const canvasHeight = cameraCanvas.height;
+
+  const margin = width * 0.2;
+
+  const sx = Math.max(0, x - margin);
+  const sy = Math.max(0, y - margin);
+  const sw = Math.min(canvasWidth - sx, width + margin * 2);
+  const sh = Math.min(canvasHeight - sy, height + margin * 2);
+
+  if (sw <= 0 || sh <= 0) {
+    return;
+  }
+
+  const mosaicSize = 14;
+
+  const tempCanvas = document.createElement("canvas");
+  const tempCtx = tempCanvas.getContext("2d");
+
+  tempCanvas.width = Math.max(1, Math.floor(sw / mosaicSize));
+  tempCanvas.height = Math.max(1, Math.floor(sh / mosaicSize));
+
+  tempCtx.drawImage(
+    cameraCanvas,
+    sx,
+    sy,
+    sw,
+    sh,
+    0,
+    0,
+    tempCanvas.width,
+    tempCanvas.height
+  );
+
+  ctx.imageSmoothingEnabled = false;
+
+  ctx.drawImage(
+    tempCanvas,
+    0,
+    0,
+    tempCanvas.width,
+    tempCanvas.height,
+    sx,
+    sy,
+    sw,
+    sh
+  );
+
+  ctx.imageSmoothingEnabled = true;
+}
+
+// =========================
+// カメラ映像をCanvasに描画
+// =========================
+
+function drawCameraFrame() {
+  if (!isCameraRunning) {
+    return;
+  }
+
+  if (video.videoWidth > 0 && video.videoHeight > 0) {
+    if (cameraCanvas.width !== video.videoWidth) {
+      cameraCanvas.width = video.videoWidth;
+      cameraCanvas.height = video.videoHeight;
+    }
+
+    cameraCtx.drawImage(video, 0, 0, cameraCanvas.width, cameraCanvas.height);
+
+    if (faceDetector && video.currentTime !== lastVideoTime) {
+      lastVideoTime = video.currentTime;
+
+      try {
+        const result = faceDetector.detectForVideo(video, performance.now());
+        const detections = result.detections || [];
+
+        detections.forEach((detection) => {
+          const box = detection.boundingBox;
+
+          applyMosaic(
+            cameraCtx,
+            box.originX,
+            box.originY,
+            box.width,
+            box.height
+          );
+        });
+
+        cameraCtx.fillStyle = "rgba(18, 59, 53, 0.85)";
+        cameraCtx.fillRect(16, 16, 265, 34);
+        cameraCtx.fillStyle = "white";
+        cameraCtx.font = "16px sans-serif";
+        cameraCtx.fillText(
+          `Privacy mode: ${detections.length} face(s) masked`,
+          28,
+          39
+        );
+
+      } catch (error) {
+        console.log("顔検出中のエラー:", error);
+      }
+    }
+  }
+
+  animationId = requestAnimationFrame(drawCameraFrame);
+}
+
+// =========================
+// カメラON
+// =========================
+
+startCameraBtn.addEventListener("click", async () => {
+  try {
+    await initFaceDetector();
+
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: {
+        width: { ideal: 640 },
+        height: { ideal: 480 }
+      },
+      audio: false
+    });
+
+    video.srcObject = stream;
+
+    video.onloadedmetadata = () => {
+      video.play();
+
+      isCameraRunning = true;
+
+      if (animationId) {
+        cancelAnimationFrame(animationId);
+      }
+
+      drawCameraFrame();
+    };
+
+  } catch (error) {
+    alert("カメラを起動できませんでした: " + error.message);
+  }
+});
+
+// =========================
+// カメラOFF
+// =========================
+
+function stopCamera() {
+  isCameraRunning = false;
+
+  if (animationId) {
+    cancelAnimationFrame(animationId);
+    animationId = null;
+  }
+
+  const stream = video.srcObject;
+
+  if (stream) {
+    stream.getTracks().forEach((track) => {
+      track.stop();
+    });
+
+    video.srcObject = null;
+  }
+
+  cameraCtx.clearRect(0, 0, cameraCanvas.width, cameraCanvas.height);
+}
+
+stopCameraBtn.addEventListener("click", () => {
+  stopCamera();
+});
+
+// =========================
+// 撮影
+// =========================
+
+captureBtn.addEventListener("click", () => {
+  if (!isCameraRunning || cameraCanvas.width === 0) {
+    alert("先にカメラを起動してください。");
+    return;
+  }
+
+  // モザイク済みcanvas画像を撮影画像として使う
+  capturedImage = cameraCanvas.toDataURL("image/jpeg", 0.8);
+  preview.src = capturedImage;
+});
+
+
+    // AI分析
+    // =========================
+
+    analyzeBtn.addEventListener("click", async () => {
+      if (!capturedImage) {
+        alert("先に服装画像を撮影してください。");
+        return;
+      }
+
+      const eventText = `${eventSelect.value} ${eventKeywords.value}`.trim();
+      const trendText = trendKeywords.value.trim();
+
+      loading.classList.remove("hidden");
+      resultText.textContent = "分析中...";
+      weatherText.textContent = "取得中...";
+      holidayText.textContent = "取得中...";
+      selectedEventText.textContent = eventText || "未選択";
+      selectedTrendText.textContent = trendText || "未入力";
+
+      try {
+        const response = await fetch("/analyze", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            image: capturedImage,
+            trend_keywords: trendText,
+            event_keywords: eventText,
+            purpose_text: purposeText.value,
+            latitude: Number(latitude.value),
+            longitude: Number(longitude.value)
+          })
+        });
+
+        const rawText = await response.text();
+
+        if (!rawText) {
+          throw new Error("サーバーから空のレスポンスが返ってきました。Flask側を確認してください。");
+        }
+
+        let data;
+        try {
+          data = JSON.parse(rawText);
+        } catch (e) {
+          throw new Error("JSONではない返答が返ってきました: " + rawText);
+        }
+
+        if (!response.ok) {
+          throw new Error(data.error || "分析に失敗しました");
+        }
+
+        weatherText.textContent = data.weather;
+        holidayText.textContent = data.holiday;
+        resultText.textContent = data.result;
+
+      } catch (error) {
+        console.error(error);
+        resultText.textContent = "エラー: " + error.message;
+      } finally {
+        loading.classList.add("hidden");
+      }
+    });
+  </script>
+</body>
+</html>
