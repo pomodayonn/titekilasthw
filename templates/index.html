@@ -5,8 +5,6 @@
   <title>AI Fashion Navigator</title>
 
   <link rel="stylesheet" href="/static/style.css">
-
-  <!-- Leaflet 地図用CSS -->
   <link
     rel="stylesheet"
     href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
@@ -16,17 +14,16 @@
   <div class="app">
     <header>
       <p class="label">AI Fashion Navigator</p>
-      <h1>今日のファッションをAIがナビゲート</h1>
+      <h1>今日のファッションをAIがアドバイス！</h1>
       <p class="subtitle">
-        Webカメラで撮影した服装画像に、現在地の天気・祝日・流行キーワード・イベント情報を組み合わせて、
+        Webカメラで撮影した服装画像に、現在地の天気・祝日・検索キーワード・イベント情報・位置情報を組み合わせて、
         今日にぴったりのファッション案を提案します。
       </p>
     </header>
 
     <main class="layout">
-      <!-- カメラエリア -->
       <section class="card camera-card">
-        <h2>1. Webカメラで服装を撮影</h2>
+        <h2>1. Webカメラで現在の服装を撮影</h2>
 
         <video id="video" autoplay playsinline muted style="display:none;"></video>
 
@@ -34,13 +31,13 @@
         <canvas id="canvas" style="display:none;"></canvas>
 
         <p class="privacy-note">
-          顔が検出された場合、プライバシー保護のため自動でモザイク処理します。
+          顔が検出された場合、プライバシー保護のため自動でモザイク処理します
         </p>
 
         <div class="button-row">
           <button id="startCameraBtn">カメラON</button>
           <button id="stopCameraBtn" class="sub-btn">カメラOFF</button>
-          <button id="captureBtn">撮影する</button>
+          <button id="captureBtn">撮影</button>
         </div>
 
         <p class="note">
@@ -56,24 +53,23 @@
         </div>
       </section>
 
-      <!-- 入力エリア -->
       <section class="card input-card">
         <h2>2. 条件を入力</h2>
 
         <label>
-          流行キーワード
+          検索キーワード
           <input
             type="text"
             id="trendKeywords"
-            placeholder="例：レイヤード、ワイドパンツ、淡色コーデ"
+            placeholder="例：レイヤード、ハーフパンツ、カラフルコーデ"
           >
         </label>
 
         <label>
-          行くイベント・予定を選択
+          イベント・予定を選択
           <select id="eventSelect">
             <option value="">選択してください</option>
-            <option value="大学・授業">大学・授業</option>
+            <option value="学校・授業">学校・授業</option>
             <option value="アルバイト">アルバイト</option>
             <option value="買い物">買い物</option>
             <option value="カフェ">カフェ</option>
@@ -89,7 +85,7 @@
         </label>
 
         <label>
-          イベントの補足
+          イベント：補足
           <input
             type="text"
             id="eventKeywords"
@@ -105,9 +101,9 @@
           ></textarea>
         </label>
 
-        <!-- 現在地・地図エリア -->
+        
         <div class="location-box">
-          <h3>現在地・天気取得エリア</h3>
+          <h3>現在地・天気</h3>
           <p>
             現在地を取得すると、緯度・経度が自動入力され、その地点の天気情報を使って服装提案します。
           </p>
@@ -118,12 +114,12 @@
 
           <div class="place-search-box">
   <label>
-    地名で場所を検索
+    場所を検索
     <div class="place-search-row">
       <input
         type="text"
         id="placeSearchInput"
-        placeholder="例：東京駅、渋谷、横浜アリーナ、東京ドーム"
+        placeholder="例：東京スカイツリー、横浜アリーナ、東京ドーム"
       >
       <button id="placeSearchBtn" type="button" class="location-btn small-location-btn">
         検索
@@ -154,12 +150,12 @@
         </div>
 
         <button id="analyzeBtn" class="main-btn">
-          AIにファッション提案してもらう
+          AIにファッション提案を開始
         </button>
       </section>
     </main>
 
-    <!-- 結果表示 -->
+  
     <section class="card result-card">
       <h2>3. 分析結果</h2>
 
@@ -194,7 +190,6 @@
     </section>
   </div>
 
-  <!-- Leaflet 地図用JS -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 
@@ -237,10 +232,8 @@ const placeSearchResults = document.getElementById("placeSearchResults");
 
 
 
-    // =========================
     // 地図初期化
-    // =========================
-
+  
     const initialLat = Number(latitude.value);
     const initialLng = Number(longitude.value);
 
@@ -273,7 +266,7 @@ const placeSearchResults = document.getElementById("placeSearchResults");
   }
 
   placeSearchResults.innerHTML = "<p>検索中...</p>";
-  locationStatus.textContent = "地名から場所を検索中です...";
+  locationStatus.textContent = "場所を検索中です...";
 
   try {
     const url =
@@ -291,14 +284,14 @@ const placeSearchResults = document.getElementById("placeSearchResults");
     });
 
     if (!response.ok) {
-      throw new Error("地名検索に失敗しました。");
+      throw new Error("検索に失敗しました。");
     }
 
     const places = await response.json();
 
     if (!places || places.length === 0) {
       placeSearchResults.innerHTML = "<p>候補が見つかりませんでした。</p>";
-      locationStatus.textContent = "地名検索で候補が見つかりませんでした。";
+      locationStatus.textContent = "検索で候補が見つかりませんでした。";
       return;
     }
 
@@ -329,7 +322,7 @@ const placeSearchResults = document.getElementById("placeSearchResults");
   } catch (error) {
     console.error(error);
     placeSearchResults.innerHTML = `<p>エラー: ${error.message}</p>`;
-    locationStatus.textContent = "地名検索でエラーが発生しました。";
+    locationStatus.textContent = "検索でエラーが発生しました。";
   }
 }
 
@@ -391,9 +384,8 @@ placeSearchInput.addEventListener("keydown", (event) => {
       updateMap(Number(latitude.value), Number(longitude.value), "手入力した位置");
     });
 
-// =========================
-// カメラON/OFF + 顔モザイク
-// =========================
+
+// カメラON/OFF、顔モザイク
 
 const cameraCanvas = document.getElementById("cameraCanvas");
 const cameraCtx = cameraCanvas.getContext("2d");
@@ -404,9 +396,8 @@ let isCameraRunning = false;
 let animationId = null;
 let lastVideoTime = -1;
 
-// =========================
-// MediaPipe 顔検出 初期化
-// =========================
+// 顔検出と初期化
+
 
 async function initFaceDetector() {
   if (faceDetector) {
@@ -429,9 +420,8 @@ async function initFaceDetector() {
   console.log("顔検出モデルを読み込みました");
 }
 
-// =========================
-// 顔部分にモザイクをかける
-// =========================
+
+// 顔にモザイクをかける
 
 function applyMosaic(ctx, x, y, width, height) {
   const canvasWidth = cameraCanvas.width;
@@ -485,13 +475,13 @@ function applyMosaic(ctx, x, y, width, height) {
   ctx.imageSmoothingEnabled = true;
 }
 
-// =========================
-// カメラ映像をCanvasに描画
-// =========================
 
-// =========================
-// 縦長カメラ用：videoをcanvasにトリミング描画
-// =========================
+// カメラ映像を描画
+
+
+
+// 縦長カメラ
+
 
 function getCoverParams(videoWidth, videoHeight, canvasWidth, canvasHeight) {
   const videoRatio = videoWidth / videoHeight;
@@ -528,9 +518,9 @@ function mapBoxToCanvas(box, params, canvasWidth, canvasHeight) {
   };
 }
 
-// =========================
-// カメラ映像をCanvasに描画
-// =========================
+
+// カメラ映像を描画
+
 
 function drawCameraFrame() {
   if (!isCameraRunning) {
@@ -554,7 +544,7 @@ function drawCameraFrame() {
       cameraCanvas.height
     );
 
-    // videoを縦長canvasにトリミング描画
+    // トリミング
     cameraCtx.drawImage(
       video,
       params.sx,
@@ -612,9 +602,8 @@ function drawCameraFrame() {
   animationId = requestAnimationFrame(drawCameraFrame);
 }
 
-// =========================
 // カメラON
-// =========================
+
 
 startCameraBtn.addEventListener("click", async () => {
   try {
@@ -650,9 +639,8 @@ startCameraBtn.addEventListener("click", async () => {
   }
 });
 
-// =========================
 // カメラOFF
-// =========================
+
 
 function stopCamera() {
   isCameraRunning = false;
@@ -681,9 +669,9 @@ stopCameraBtn.addEventListener("click", () => {
   stopCamera();
 });
 
-// =========================
+
 // 撮影
-// =========================
+
 
 captureBtn.addEventListener("click", () => {
   if (!isCameraRunning || cameraCanvas.width === 0) {
@@ -702,9 +690,8 @@ captureBtn.addEventListener("click", () => {
   resultText.textContent = "撮影しました。内容を確認して、AI分析ボタンを押してください。";
 });
 
-// =========================
 // 撮影
-// =========================
+
 
 captureBtn.addEventListener("click", () => {
   if (!isCameraRunning || cameraCanvas.width === 0) {
@@ -712,7 +699,7 @@ captureBtn.addEventListener("click", () => {
     return;
   }
 
-  // モザイク済みcanvas画像を撮影画像として使う
+  // モザイク済み画像を撮影画像を使用
   capturedImage = cameraCanvas.toDataURL("image/jpeg", 0.8);
   preview.src = capturedImage;
 });
@@ -741,7 +728,7 @@ deleteImageBtn.addEventListener("click", () => {
 });
 
     // AI分析
-    // =========================
+  
 analyzeBtn.addEventListener("click", async () => {
   console.log("AI分析ボタンが押されました");
 

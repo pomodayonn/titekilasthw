@@ -11,7 +11,7 @@ import time
 
 app = Flask(__name__)
 
-#GiminiAPIの設定
+#GiminiAPI
 
 api_key = os.environ.get("GEMINI_API_KEY")
 
