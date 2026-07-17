@@ -543,67 +543,84 @@ deleteImageBtn.addEventListener("click", () => {
 
     // AI分析
     // =========================
+analyzeBtn.addEventListener("click", async () => {
+  console.log("AI分析ボタンが押されました");
 
-    analyzeBtn.addEventListener("click", async () => {
-      if (!capturedImage) {
-        alert("先に服装画像を撮影してください。");
-        return;
-      }
+  if (!capturedImage) {
+    alert("先に服装画像を撮影してください。");
+    return;
+  }
 
-      const eventText = `${eventSelect.value} ${eventKeywords.value}`.trim();
-      const trendText = trendKeywords.value.trim();
+  const eventText = `${eventSelect.value} ${eventKeywords.value}`.trim();
+  const trendText = trendKeywords.value.trim();
 
-      loading.classList.remove("hidden");
-      resultText.textContent = "分析中...";
-      weatherText.textContent = "取得中...";
-      holidayText.textContent = "取得中...";
-      selectedEventText.textContent = eventText || "未選択";
-      selectedTrendText.textContent = trendText || "未入力";
+  loading.classList.remove("hidden");
+  analyzeBtn.disabled = true;
+  analyzeBtn.textContent = "AIが分析中です...";
 
-      try {
-        const response = await fetch("/analyze", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            image: capturedImage,
-            trend_keywords: trendText,
-            event_keywords: eventText,
-            purpose_text: purposeText.value,
-            latitude: Number(latitude.value),
-            longitude: Number(longitude.value)
-          })
-        });
+  resultText.textContent = "分析中...";
+  weatherText.textContent = "取得中...";
+  holidayText.textContent = "取得中...";
+  selectedEventText.textContent = eventText || "未選択";
+  selectedTrendText.textContent = trendText || "未入力";
 
-        const rawText = await response.text();
+  try {
+    const payload = {
+      image: capturedImage,
+      trend_keywords: trendText,
+      event_keywords: eventText,
+      purpose_text: purposeText.value,
+      latitude: Number(latitude.value),
+      longitude: Number(longitude.value)
+    };
 
-        if (!rawText) {
-          throw new Error("サーバーから空のレスポンスが返ってきました。Flask側を確認してください。");
-        }
-
-        let data;
-        try {
-          data = JSON.parse(rawText);
-        } catch (e) {
-          throw new Error("JSONではない返答が返ってきました: " + rawText);
-        }
-
-        if (!response.ok) {
-          throw new Error(data.error || "分析に失敗しました");
-        }
-
-        weatherText.textContent = data.weather;
-        holidayText.textContent = data.holiday;
-        resultText.textContent = data.result;
-
-      } catch (error) {
-        console.error(error);
-        resultText.textContent = "エラー: " + error.message;
-      } finally {
-        loading.classList.add("hidden");
-      }
+    console.log("送信データ:", {
+      ...payload,
+      image: capturedImage ? "画像データあり" : "画像なし"
     });
+
+    const response = await fetch("/analyze", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(payload)
+    });
+
+    console.log("ステータス:", response.status);
+
+    const rawText = await response.text();
+    console.log("サーバー返答:", rawText);
+
+    if (!rawText) {
+      throw new Error("サーバーから空のレスポンスが返ってきました。Render Logsを確認してください。");
+    }
+
+    let data;
+    try {
+      data = JSON.parse(rawText);
+    } catch (e) {
+      throw new Error("JSONではない返答が返ってきました: " + rawText);
+    }
+
+    if (!response.ok) {
+      throw new Error(data.error || "分析に失敗しました");
+    }
+
+    weatherText.textContent = data.weather;
+    holidayText.textContent = data.holiday;
+    resultText.textContent = data.result;
+
+  } catch (error) {
+    console.error("AI分析エラー:", error);
+    resultText.textContent = "エラー: " + error.message;
+    alert("AI分析でエラーが発生しました。画面下の分析結果とRender Logsを確認してください。");
+  } finally {
+    loading.classList.add("hidden");
+    analyzeBtn.disabled = false;
+    analyzeBtn.textContent = "AIにファッション提案してもらう";
+  }
+});
   </script>
 </body>
 </html>
