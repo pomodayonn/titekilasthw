@@ -3,5 +3,3 @@ google-genai
 Pillow
 requests
 gunicorn
-opencv-python-headless
-numpy

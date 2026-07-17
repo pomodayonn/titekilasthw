@@ -7,8 +7,6 @@ import requests
 import os
 import base64
 import time
-import cv2
-import numpy as np
 
 
 app = Flask(__name__)
@@ -119,83 +117,8 @@ def decode_image(base64_image):
 
     return image
 
-# =========================
-# 顔検出してモザイク処理
-# =========================
-
-def mosaic_area(img, x, y, w, h, mosaic_rate=0.08):
-    """
-    指定範囲にモザイクをかける
-    img: OpenCV画像
-    x, y, w, h: 顔領域
-    mosaic_rate: 小さいほど強いモザイク
-    """
-    face = img[y:y+h, x:x+w]
-
-    if face.size == 0:
-        return img
-
-    small_w = max(1, int(w * mosaic_rate))
-    small_h = max(1, int(h * mosaic_rate))
-
-    small = cv2.resize(face, (small_w, small_h), interpolation=cv2.INTER_LINEAR)
-    mosaic = cv2.resize(small, (w, h), interpolation=cv2.INTER_NEAREST)
-
-    img[y:y+h, x:x+w] = mosaic
-
-    return img
 
 
-def blur_faces(pil_image):
-    """
-    PIL画像から顔を検出し、顔部分にモザイクをかけてPIL画像として返す
-    """
-    # PIL → OpenCV形式
-    img = np.array(pil_image)
-
-    # RGB → BGR
-    img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
-
-    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-
-    # OpenCV付属の顔検出モデル
-    cascade_path = cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
-    face_cascade = cv2.CascadeClassifier(cascade_path)
-
-    faces = face_cascade.detectMultiScale(
-        gray,
-        scaleFactor=1.1,
-        minNeighbors=5,
-        minSize=(60, 60)
-    )
-
-    print(f"検出された顔の数: {len(faces)}")
-
-    for (x, y, w, h) in faces:
-        # 顔周辺を少し広めにモザイク
-        margin = int(w * 0.15)
-
-        x1 = max(0, x - margin)
-        y1 = max(0, y - margin)
-        x2 = min(img.shape[1], x + w + margin)
-        y2 = min(img.shape[0], y + h + margin)
-
-        img = mosaic_area(
-            img,
-            x1,
-            y1,
-            x2 - x1,
-            y2 - y1,
-            mosaic_rate=0.06
-        )
-
-    # BGR → RGB
-    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-
-    # OpenCV → PIL
-    masked_image = Image.fromarray(img)
-
-    return masked_image
 
 #服装分析
 
@@ -304,12 +227,7 @@ def analyze():
 
         print("画像を変換中...")
         image = decode_image(image_data)
-        print("顔を検出してモザイク処理中...")
-        image = blur_faces(image)
 
-# 確認用にモザイク済み画像を保存
-        image.save("masked_outfit.jpg")
-        print("モザイク済み画像を保存しました: masked_outfit.jpg")
 
         print("天気情報を取得中...")
         weather_text = fetch_weather(latitude, longitude)
