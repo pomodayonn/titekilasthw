@@ -387,19 +387,85 @@ function applyMosaic(ctx, x, y, width, height) {
 // カメラ映像をCanvasに描画
 // =========================
 
+// =========================
+// 縦長カメラ用：videoをcanvasにトリミング描画
+// =========================
+
+function getCoverParams(videoWidth, videoHeight, canvasWidth, canvasHeight) {
+  const videoRatio = videoWidth / videoHeight;
+  const canvasRatio = canvasWidth / canvasHeight;
+
+  let sx, sy, sw, sh;
+
+  if (videoRatio > canvasRatio) {
+    // 横が余るので左右をカット
+    sh = videoHeight;
+    sw = videoHeight * canvasRatio;
+    sx = (videoWidth - sw) / 2;
+    sy = 0;
+  } else {
+    // 縦が余るので上下をカット
+    sw = videoWidth;
+    sh = videoWidth / canvasRatio;
+    sx = 0;
+    sy = (videoHeight - sh) / 2;
+  }
+
+  return { sx, sy, sw, sh };
+}
+
+function mapBoxToCanvas(box, params, canvasWidth, canvasHeight) {
+  const scaleX = canvasWidth / params.sw;
+  const scaleY = canvasHeight / params.sh;
+
+  return {
+    x: (box.originX - params.sx) * scaleX,
+    y: (box.originY - params.sy) * scaleY,
+    width: box.width * scaleX,
+    height: box.height * scaleY
+  };
+}
+
+// =========================
+// カメラ映像をCanvasに描画
+// =========================
+
 function drawCameraFrame() {
   if (!isCameraRunning) {
     return;
   }
 
   if (video.videoWidth > 0 && video.videoHeight > 0) {
-    if (cameraCanvas.width !== video.videoWidth) {
-      cameraCanvas.width = video.videoWidth;
-      cameraCanvas.height = video.videoHeight;
+    // 縦長の内部解像度に固定
+    const canvasWidth = 720;
+    const canvasHeight = 960;
+
+    if (cameraCanvas.width !== canvasWidth || cameraCanvas.height !== canvasHeight) {
+      cameraCanvas.width = canvasWidth;
+      cameraCanvas.height = canvasHeight;
     }
 
-    cameraCtx.drawImage(video, 0, 0, cameraCanvas.width, cameraCanvas.height);
+    const params = getCoverParams(
+      video.videoWidth,
+      video.videoHeight,
+      cameraCanvas.width,
+      cameraCanvas.height
+    );
 
+    // videoを縦長canvasにトリミング描画
+    cameraCtx.drawImage(
+      video,
+      params.sx,
+      params.sy,
+      params.sw,
+      params.sh,
+      0,
+      0,
+      cameraCanvas.width,
+      cameraCanvas.height
+    );
+
+    // 顔検出してモザイク
     if (faceDetector && video.currentTime !== lastVideoTime) {
       lastVideoTime = video.currentTime;
 
@@ -409,13 +475,19 @@ function drawCameraFrame() {
 
         detections.forEach((detection) => {
           const box = detection.boundingBox;
+          const mappedBox = mapBoxToCanvas(
+            box,
+            params,
+            cameraCanvas.width,
+            cameraCanvas.height
+          );
 
           applyMosaic(
             cameraCtx,
-            box.originX,
-            box.originY,
-            box.width,
-            box.height
+            mappedBox.x,
+            mappedBox.y,
+            mappedBox.width,
+            mappedBox.height
           );
         });
 
@@ -446,10 +518,13 @@ startCameraBtn.addEventListener("click", async () => {
   try {
     await initFaceDetector();
 
+    // すでにカメラが動いていたら一度止める
+    stopCamera();
+
     const stream = await navigator.mediaDevices.getUserMedia({
       video: {
-        width: { ideal: 640 },
-        height: { ideal: 480 }
+        width: { ideal: 720 },
+        height: { ideal: 1280 }
       },
       audio: false
     });
@@ -495,11 +570,34 @@ function stopCamera() {
     video.srcObject = null;
   }
 
-  cameraCtx.clearRect(0, 0, cameraCanvas.width, cameraCanvas.height);
+  if (cameraCtx && cameraCanvas.width > 0) {
+    cameraCtx.clearRect(0, 0, cameraCanvas.width, cameraCanvas.height);
+  }
 }
 
 stopCameraBtn.addEventListener("click", () => {
   stopCamera();
+});
+
+// =========================
+// 撮影
+// =========================
+
+captureBtn.addEventListener("click", () => {
+  if (!isCameraRunning || cameraCanvas.width === 0) {
+    alert("先にカメラを起動してください。");
+    return;
+  }
+
+  // 2回目以降も必ず最新画像で上書きする
+  capturedImage = null;
+
+  capturedImage = cameraCanvas.toDataURL("image/jpeg", 0.85);
+
+  preview.src = capturedImage;
+  preview.style.display = "block";
+
+  resultText.textContent = "撮影しました。内容を確認して、AI分析ボタンを押してください。";
 });
 
 // =========================
@@ -530,7 +628,6 @@ deleteImageBtn.addEventListener("click", () => {
   }
 
   capturedImage = null;
-
   preview.removeAttribute("src");
   preview.style.display = "none";
 
